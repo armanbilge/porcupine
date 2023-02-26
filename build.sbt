@@ -25,6 +25,9 @@ ThisBuild / githubWorkflowBuildPreamble ++= Seq(
   ),
 )
 
+ThisBuild / githubWorkflowBuildPreamble ++= nativeBrewInstallWorkflowSteps.value
+ThisBuild / nativeBrewInstallCond := Some("matrix.project == 'rootNative'")
+
 ThisBuild / Test / testOptions += Tests.Argument("+l")
 
 val commonJvmSettings = Seq(
@@ -35,7 +38,7 @@ lazy val root = tlCrossRootProject.aggregate(
   core,
 )
 
-lazy val core = crossProject(JVMPlatform, JSPlatform)
+lazy val core = crossProject(JVMPlatform, JSPlatform, NativePlatform)
   .in(file("core"))
   .settings(
     name := "porcupine",
@@ -43,10 +46,18 @@ lazy val core = crossProject(JVMPlatform, JSPlatform)
       "org.typelevel" %%% "cats-core" % "2.9.0",
       "org.typelevel" %%% "cats-effect" % "3.4.8",
       "co.fs2" %%% "fs2-core" % "3.6.1",
+      "org.scodec" %%% "scodec-bits" % "1.1.36",
     ),
   )
   .jvmSettings(
     libraryDependencies ++= Seq(
-      "org.xerial" %%% "sqlite-jdbc" % "3.41.0.0",
+      "org.xerial" % "sqlite-jdbc" % "3.41.0.0",
     ),
+  )
+  .jsSettings(
+    Test / scalaJSLinkerConfig ~= (_.withModuleKind(ModuleKind.CommonJSModule)),
+  )
+  .nativeConfigure(_.enablePlugins(ScalaNativeBrewedConfigPlugin))
+  .nativeSettings(
+    nativeBrewFormulas += "sqlite",
   )
