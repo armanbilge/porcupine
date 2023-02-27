@@ -33,7 +33,9 @@ object PorcupineTest extends IOApp.Simple:
           (Codec.`null`, Codec.integer, Codec.real, Codec.text, Codec.blob).tupled,
           Codec.unit,
         ),
-      ).use(_.cursor((None, 42, 3.14, "quill-pig", ByteVector(0, 1, 2, 3))).use_) *>
+      ).use(
+        _.cursor((None, 42, 3.14, "quill-pig", ByteVector(0, 1, 2, 3))).use(_.fetch(1).void),
+      ) *>
       db.prepare(
         Query(
           "select b, t, r, i, n from porcupine;",

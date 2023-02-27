@@ -95,7 +95,29 @@ private abstract class DatabasePlatform:
                         }(_ => F.async_[Unit](cb => statement.reset(() => cb(Either.unit))))
                         .as {
                           new:
-                            def fetch(maxRows: Int): F[(List[B], Boolean)] = ???
+                            def fetch(maxRows: Int): F[(List[B], Boolean)] =
+                              F.async[Option[js.Array[Any]]] { cb =>
+                                F.delay {
+                                  statement.get { (e, r) =>
+                                    println((e, r))
+                                    js.Dynamic.global.console.log(r.asInstanceOf[js.Any])
+                                    cb(
+                                      Option(e)
+                                        .map(js.JavaScriptException(_))
+                                        .toLeft(r.toOption),
+                                    )
+                                  }
+                                  Some(F.delay(db.interrupt()))
+                                }
+                              }.flatMap {
+                                case Some(row) =>
+                                  println(row)
+                                  row.map { x =>
+                                    println(x)
+                                  }.toList
+                                  ???
+                                case None => F.pure((Nil, false))
+                              }
 
                         }
 
