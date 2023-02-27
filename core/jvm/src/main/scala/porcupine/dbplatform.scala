@@ -43,7 +43,7 @@ private abstract class DatabasePlatform:
             new:
               def cursor(args: A): Resource[F, Cursor[F, B]] = mutex.lock >>
                 Resource
-                  .fromAutoCloseable {
+                  .make {
                     F.blocking {
                       query.encoder.encode(args).zipWithIndex.foreach {
                         case (LiteValue.Null, i) => statement.setNull(i, Types.NULL)
@@ -53,41 +53,43 @@ private abstract class DatabasePlatform:
                         case (LiteValue.Blob(value), i) =>
                           statement.setBlob(i, value.toInputStream, value.length)
                       }
-                      statement.executeQuery()
+                      Option.when(statement.execute())(statement.getResultSet())
                     }
-                  }
-                  .map { results =>
-                    new:
-                      def fetch(maxRows: Int): F[(List[B], Boolean)] = F
-                        .blocking {
-                          statement.setFetchSize(maxRows)
+                  }(_.traverse_(rs => F.blocking(rs.close())))
+                  .map {
+                    case Some(results) =>
+                      new:
+                        def fetch(maxRows: Int): F[(List[B], Boolean)] = F
+                          .blocking {
+                            statement.setFetchSize(maxRows)
 
-                          val metaData = results.getMetaData()
-                          val columnCount = metaData.getColumnCount()
+                            val metaData = results.getMetaData()
+                            val columnCount = metaData.getColumnCount()
 
-                          val rows = List.newBuilder[List[LiteValue]]
-                          var i = 0
-                          while i < maxRows && results.next() do
-                            rows += (1 to columnCount).view.map { j =>
-                              results.getObject(j) match
-                                case null => LiteValue.Null
-                                case i: Integer => LiteValue.Integer(i.longValue())
-                                case l: java.lang.Long => LiteValue.Integer(l.longValue())
-                                case d: java.lang.Double => LiteValue.Real(d.doubleValue())
-                                case s: String => LiteValue.Text(s)
-                                case b: Array[Byte] => LiteValue.Blob(ByteVector.view(b))
-                            }.toList
-                            i += 1
+                            val rows = List.newBuilder[List[LiteValue]]
+                            var i = 0
+                            while i < maxRows && results.next() do
+                              rows += (1 to columnCount).view.map { j =>
+                                results.getObject(j) match
+                                  case null => LiteValue.Null
+                                  case i: Integer => LiteValue.Integer(i.longValue())
+                                  case l: java.lang.Long => LiteValue.Integer(l.longValue())
+                                  case d: java.lang.Double => LiteValue.Real(d.doubleValue())
+                                  case s: String => LiteValue.Text(s)
+                                  case b: Array[Byte] => LiteValue.Blob(ByteVector.view(b))
+                              }.toList
+                              i += 1
 
-                          (rows.result(), i == maxRows)
-                        }
-                        .flatMap { (rows, more) =>
-                          rows
-                            .traverse(query.decoder.decode.runA(_))
-                            .tupleRight(more)
-                            .liftTo[F]
-                        }
+                            (rows.result(), i == maxRows)
+                          }
+                          .flatMap { (rows, more) =>
+                            rows
+                              .traverse(query.decoder.decode.runA(_))
+                              .tupleRight(more)
+                              .liftTo[F]
+                          }
 
+                    case None => _ => F.pure((Nil, false))
                   }
 
           }
