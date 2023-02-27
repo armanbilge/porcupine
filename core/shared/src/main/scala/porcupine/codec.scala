@@ -16,9 +16,9 @@
 
 package porcupine
 
-import cats.Apply
-import cats.ContravariantSemigroupal
-import cats.InvariantSemigroupal
+import cats.Applicative
+import cats.ContravariantMonoidal
+import cats.InvariantMonoidal
 import cats.data.StateT
 import cats.syntax.all.*
 import scodec.bits.ByteVector
@@ -34,10 +34,12 @@ trait Encoder[A]:
       case Right(b) => right.encode(b)
 
   def opt: Encoder[Option[A]] =
-    either(Codec.`null`).contramap(_.toLeft(()))
+    either(Codec.`null`).contramap(_.toLeft(None))
 
 object Encoder:
-  given ContravariantSemigroupal[Encoder] = new:
+  given ContravariantMonoidal[Encoder] = new:
+    def unit = Codec.unit
+
     def product[A, B](fa: Encoder[A], fb: Encoder[B]) = new:
       def encode(ab: (A, B)) =
         val (a, b) = ab
@@ -61,11 +63,14 @@ trait Decoder[A]:
     outer.map(Some(_)).or(Codec.`null`.asDecoder.as(None))
 
 object Decoder:
-  given Apply[Decoder] = new:
+  given Applicative[Decoder] = new:
+    def pure[A](a: A) = new:
+      def decode = StateT.pure(a)
+
     def ap[A, B](ff: Decoder[A => B])(fa: Decoder[A]) = new:
       def decode = ff.decode.ap(fa.decode)
 
-    def map[A, B](fa: Decoder[A])(f: A => B) = new:
+    override def map[A, B](fa: Decoder[A])(f: A => B) = new:
       def decode = fa.decode.map(f)
 
 trait Codec[A] extends Encoder[A], Decoder[A]:
@@ -81,7 +86,7 @@ trait Codec[A] extends Encoder[A], Decoder[A]:
     def decode = outer.asDecoder.either(right).decode
 
   override def opt: Codec[Option[A]] =
-    either(Codec.`null`).imap(_.left.toOption)(_.toLeft(()))
+    either(Codec.`null`).imap(_.left.toOption)(_.toLeft(None))
 
 object Codec:
   val integer: Codec[Long] = new:
@@ -112,14 +117,22 @@ object Codec:
       case other => Left(new RuntimeException(s"Expected blob, got ${other.headOption}"))
     }
 
-  val `null`: Codec[Unit] = new:
-    def encode(u: Unit) = LiteValue.Null :: Nil
+  val `null`: Codec[None.type] = new:
+    def encode(n: None.type) = LiteValue.Null :: Nil
     def decode = StateT {
-      case LiteValue.Null :: tail => Right((tail, ()))
+      case LiteValue.Null :: tail => Right((tail, None))
       case other => Left(new RuntimeException(s"Expected NULL, got ${other.headOption}"))
     }
 
-  given InvariantSemigroupal[Codec] = new:
+  def unit: Codec[Unit] = new:
+    def encode(u: Unit) = Nil
+    def decode = StateT {
+      case Nil => Right((Nil, ()))
+      case other => Left(new RuntimeException(s"Expected nothing, got ${other.headOption}"))
+    }
+
+  given InvariantMonoidal[Codec] = new:
+    def unit = Codec.unit
 
     def product[A, B](fa: Codec[A], fb: Codec[B]) = new:
       def encode(ab: (A, B)) =
