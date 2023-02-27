@@ -34,6 +34,8 @@ private abstract class DatabasePlatform:
               filename,
               e => cb(Option(e).map(js.JavaScriptException(_)).toLeft(db)),
             )
+            db // init
+            ()
           }
         } { db =>
           mutex.lock.surround {
@@ -55,6 +57,7 @@ private abstract class DatabasePlatform:
                             query.sql,
                             e => cb(Option(e).map(js.JavaScriptException(_)).toLeft(statement)),
                           )
+                        statement // init
                         Some(F.delay(db.interrupt()))
                       }
                     }
