@@ -18,11 +18,21 @@ package porcupine
 
 import cats.effect.IOApp
 import cats.effect.IO
+import cats.syntax.all.*
+import scodec.bits.ByteVector
 
 object PorcupineTest extends IOApp.Simple:
 
   def run = Database.open[IO](":memory:").use { db =>
-    db.prepare(Query("create table porcupine (n, i, r, t, b);", Codec.unit, Codec.unit)).use { statement =>
-      statement.cursor(()).use_
-    }
+    db.prepare(Query("create table porcupine (n, i, r, t, b);", Codec.unit, Codec.unit)).use {
+      _.cursor(()).use_
+    } *> db
+      .prepare(
+        Query(
+          "insert into porcupine values($1, $2, $3, $4, $5);",
+          (Codec.`null`, Codec.integer, Codec.real, Codec.text, Codec.blob).tupled,
+          Codec.unit,
+        ),
+      )
+      .use(_.cursor((None, 42, 3.14, "lipsum", ByteVector(0, 1, 2, 3))).use_)
   }

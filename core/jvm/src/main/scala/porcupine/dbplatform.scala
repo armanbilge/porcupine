@@ -46,12 +46,12 @@ private abstract class DatabasePlatform:
                   .make {
                     F.blocking {
                       query.encoder.encode(args).zipWithIndex.foreach {
-                        case (LiteValue.Null, i) => statement.setNull(i, Types.NULL)
-                        case (LiteValue.Integer(value), i) => statement.setLong(i, value)
-                        case (LiteValue.Real(value), i) => statement.setDouble(i, value)
-                        case (LiteValue.Text(value), i) => statement.setString(i, value)
+                        case (LiteValue.Null, i) => statement.setNull(i + 1, Types.NULL)
+                        case (LiteValue.Integer(value), i) => statement.setLong(i + 1, value)
+                        case (LiteValue.Real(value), i) => statement.setDouble(i + 1, value)
+                        case (LiteValue.Text(value), i) => statement.setString(i + 1, value)
                         case (LiteValue.Blob(value), i) =>
-                          statement.setBlob(i, value.toInputStream, value.length)
+                          statement.setBytes(i + 1, value.toArray)
                       }
                       Option.when(statement.execute())(statement.getResultSet())
                     }
