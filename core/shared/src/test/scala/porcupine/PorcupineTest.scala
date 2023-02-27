@@ -16,8 +16,13 @@
 
 package porcupine
 
-import cats.effect.kernel.Async
-import cats.effect.kernel.Resource
+import cats.effect.IOApp
+import cats.effect.IO
 
-private abstract class DatabasePlatform:
-  def open[F[_]: Async](filename: String): Resource[F, Database[F]] = ???
+object PorcupineTest extends IOApp.Simple:
+
+  def run = Database.open[IO](":memory:").use { db =>
+    db.prepare(Query("create table porcupine (n, i, r, t, b);", Codec.unit, Codec.unit)).use { statement =>
+      statement.cursor(()).use_
+    }
+  }

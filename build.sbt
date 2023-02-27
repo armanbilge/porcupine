@@ -30,10 +30,6 @@ ThisBuild / nativeBrewInstallCond := Some("matrix.project == 'rootNative'")
 
 ThisBuild / Test / testOptions += Tests.Argument("+l")
 
-val commonJvmSettings = Seq(
-  fork := true,
-)
-
 lazy val root = tlCrossRootProject.aggregate(
   core,
 )
@@ -53,6 +49,7 @@ lazy val core = crossProject(JVMPlatform, JSPlatform, NativePlatform)
     libraryDependencies ++= Seq(
       "org.xerial" % "sqlite-jdbc" % "3.41.0.0",
     ),
+    fork := true,
   )
   .jsSettings(
     Test / scalaJSLinkerConfig ~= (_.withModuleKind(ModuleKind.CommonJSModule)),

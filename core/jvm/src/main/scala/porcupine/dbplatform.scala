@@ -73,6 +73,7 @@ private abstract class DatabasePlatform:
                                 case null => LiteValue.Null
                                 case i: Integer => LiteValue.Integer(i.longValue())
                                 case l: java.lang.Long => LiteValue.Integer(l.longValue())
+                                case d: java.lang.Double => LiteValue.Real(d.doubleValue())
                                 case s: String => LiteValue.Text(s)
                                 case b: Array[Byte] => LiteValue.Blob(ByteVector.view(b))
                             }.toList
