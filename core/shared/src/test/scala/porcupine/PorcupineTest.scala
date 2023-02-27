@@ -25,7 +25,7 @@ object PorcupineTest extends IOApp.Simple:
 
   def run = Database.open[IO](":memory:").use { db =>
     db.prepare(Query("create table porcupine (n, i, r, t, b);", Codec.unit, Codec.unit)).use {
-      _.cursor(()).use_
+      _.cursor(()).use(_.fetch(1).void)
     } *>
       db.prepare(
         Query(
