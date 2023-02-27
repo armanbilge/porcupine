@@ -41,7 +41,7 @@ private abstract class DatabasePlatform:
           }
           .map { statement =>
             new:
-              def cursor(args: A): Resource[F, Cursor[F, B]] = mutex.lock >>
+              def cursor(args: A): Resource[F, Cursor[F, B]] = mutex.lock *>
                 Resource
                   .make {
                     F.blocking {

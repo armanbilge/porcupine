@@ -52,6 +52,8 @@ lazy val core = crossProject(JVMPlatform, JSPlatform, NativePlatform)
     fork := true,
   )
   .jsSettings(
+    Test / scalaJSUseMainModuleInitializer := true,
+    Test / scalaJSUseTestModuleInitializer := false,
     Test / scalaJSLinkerConfig ~= (_.withModuleKind(ModuleKind.CommonJSModule)),
   )
   .nativeConfigure(_.enablePlugins(ScalaNativeBrewedConfigPlugin))

@@ -18,6 +18,86 @@ package porcupine
 
 import cats.effect.kernel.Async
 import cats.effect.kernel.Resource
+import cats.effect.std.Mutex
+import cats.syntax.all.*
+
+import scala.scalajs.js
+import scala.scalajs.js.JSConverters.*
 
 private abstract class DatabasePlatform:
-  def open[F[_]: Async](filename: String): Resource[F, Database[F]] = ???
+  def open[F[_]](filename: String)(implicit F: Async[F]): Resource[F, Database[F]] =
+    Resource.eval(Mutex[F]).flatMap { mutex =>
+      Resource
+        .make {
+          F.async_[sqlite3.Database] { cb =>
+            lazy val db: sqlite3.Database = new sqlite3.Database(
+              filename,
+              e => cb(Option(e).map(js.JavaScriptException(_)).toLeft(db)),
+            )
+          }
+        } { db =>
+          mutex.lock.surround {
+            F.async_[Unit] { cb =>
+              db.close(e => cb(Option(e).map(js.JavaScriptException(_)).toLeft(())))
+            }
+          }
+        }
+        .map { db =>
+          new:
+            def prepare[A, B](query: Query[A, B]): Resource[F, Statement[F, A, B]] =
+              Resource
+                .make {
+                  mutex.lock.surround {
+                    F.async[sqlite3.Statement] { cb =>
+                      F.delay {
+                        lazy val statement: sqlite3.Statement =
+                          db.prepare(
+                            query.sql,
+                            e => cb(Option(e).map(js.JavaScriptException(_)).toLeft(statement)),
+                          )
+                        Some(F.delay(db.interrupt()))
+                      }
+                    }
+                  }
+                } { statement =>
+                  mutex.lock.surround {
+                    F.async_ { cb =>
+                      statement
+                        .finalize(e => cb(Option(e).map(js.JavaScriptException(_)).toLeft(())))
+                    }
+                  }
+                }
+                .map { statement =>
+                  new:
+                    def cursor(args: A): Resource[F, Cursor[F, B]] = mutex.lock *>
+                      Resource
+                        .make {
+                          F.async[Unit] { cb =>
+                            F.delay {
+                              val jsArgs = query.encoder.encode(args).map {
+                                case LiteValue.Null => null
+                                case LiteValue.Integer(value) => value.toString
+                                case LiteValue.Real(value) => value
+                                case LiteValue.Text(value) => value
+                                case LiteValue.Blob(value) => value.toUint8Array
+                              }
+
+                              val jscb: js.Function1[js.Error, Unit] =
+                                e => cb(Option(e).map(js.JavaScriptException(_)).toLeft(()))
+
+                              statement.bind((jsArgs ::: jscb :: Nil)*)
+
+                              Some(F.delay(db.interrupt()))
+                            }
+                          }
+                        }(_ => F.async_[Unit](cb => statement.reset(() => cb(Either.unit))))
+                        .as {
+                          new:
+                            def fetch(maxRows: Int): F[(List[B], Boolean)] = ???
+
+                        }
+
+                }
+
+        }
+    }
