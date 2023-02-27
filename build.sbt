@@ -55,6 +55,10 @@ lazy val core = crossProject(JVMPlatform, JSPlatform, NativePlatform)
     Test / scalaJSUseMainModuleInitializer := true,
     Test / scalaJSUseTestModuleInitializer := false,
     Test / scalaJSLinkerConfig ~= (_.withModuleKind(ModuleKind.CommonJSModule)),
+    jsEnv := {
+      import org.scalajs.jsenv.nodejs.NodeJSEnv
+      new NodeJSEnv(NodeJSEnv.Config().withArgs(List("--enable-source-maps")))
+    },
   )
   .nativeConfigure(_.enablePlugins(ScalaNativeBrewedConfigPlugin))
   .nativeSettings(
