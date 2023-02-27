@@ -126,10 +126,7 @@ object Codec:
 
   def unit: Codec[Unit] = new:
     def encode(u: Unit) = Nil
-    def decode = StateT {
-      case Nil => Right((Nil, ()))
-      case other => Left(new RuntimeException(s"Expected nothing, got ${other.headOption}"))
-    }
+    def decode = StateT.pure(())
 
   given InvariantMonoidal[Codec] = new:
     def unit = Codec.unit
