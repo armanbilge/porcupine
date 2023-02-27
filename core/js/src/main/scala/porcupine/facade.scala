@@ -38,6 +38,6 @@ private[porcupine] trait Statement extends js.Object:
 
   def reset(cb: js.Function0[Unit]): Statement = js.native
 
-  def finalize(cb: js.Function1[js.Error, Unit]): Unit = js.native
+  def finalize(cb: js.Function0[Unit]): Unit = js.native
 
   def get(cb: js.Function2[js.Error, js.Array[Any], Unit]): Statement = js.native

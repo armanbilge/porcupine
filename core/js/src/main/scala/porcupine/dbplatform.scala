@@ -65,8 +65,7 @@ private abstract class DatabasePlatform:
                 } { statement =>
                   mutex.lock.surround {
                     F.async_ { cb =>
-                      statement
-                        .finalize(e => cb(Option(e).map(js.JavaScriptException(_)).toLeft(())))
+                      statement.finalize(() => cb(Either.unit))
                     }
                   }
                 }
