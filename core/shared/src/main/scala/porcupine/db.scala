@@ -18,7 +18,13 @@ package porcupine
 
 import cats.effect.kernel.Resource
 
-abstract class Database[F[_]] private ():
+abstract class Database[F[_]] private[porcupine]:
   def prepare[A, B](query: Query[A, B]): Resource[F, Statement[F, A, B]]
 
 object Database
+
+abstract class Statement[F[_], A, B] private[porcupine]:
+  def cursor(args: A): Resource[F, Cursor[F, B]]
+
+abstract class Cursor[F[_], A] private[porcupine]:
+  def fetch(maxRows: Int): F[(List[A], Boolean)]
