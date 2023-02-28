@@ -29,7 +29,7 @@ object PorcupineTest extends IOApp.Simple:
     } *>
       db.prepare(
         Query(
-          "insert into porcupine values($1, $2, $3, $4, $5);",
+          "insert into porcupine values(?, ?, ?, ?, ?);",
           (Codec.`null`, Codec.integer, Codec.real, Codec.text, Codec.blob).tupled,
           Codec.unit,
         ),
