@@ -63,7 +63,7 @@ private abstract class DatabasePlatform:
                                       val entry = iterator.next()
                                       rows += entry.value.map {
                                         case null => LiteValue.Null
-                                        case i: js.BigInt =>
+                                        case i if js.typeOf(i) == "bigint" =>
                                           LiteValue.Integer(i.toString.toLong)
                                         case d: Double => LiteValue.Real(d)
                                         case s: String => LiteValue.Text(s)
