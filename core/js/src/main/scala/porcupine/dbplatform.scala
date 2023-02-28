@@ -58,22 +58,25 @@ private abstract class DatabasePlatform:
                                   F.delay {
                                     val rows = List.newBuilder[List[LiteValue]]
                                     var i = 0
-                                    var more = true
-                                    while i < maxRows && more do
+                                    var continue = true
+                                    while i < maxRows && continue do
                                       val entry = iterator.next()
-                                      rows += entry.value.map {
-                                        case null => LiteValue.Null
-                                        case i if js.typeOf(i) == "bigint" =>
-                                          LiteValue.Integer(i.toString.toLong)
-                                        case d: Double => LiteValue.Real(d)
-                                        case s: String => LiteValue.Text(s)
-                                        case b: Uint8Array =>
-                                          LiteValue.Blob(ByteVector.fromUint8Array(b))
-                                      }.toList
-                                      more = !entry.done
+                                      entry.value.toOption match
+                                        case Some(row) =>
+                                          rows += row.map {
+                                            case null => LiteValue.Null
+                                            case i if js.typeOf(i) == "bigint" =>
+                                              LiteValue.Integer(i.toString.toLong)
+                                            case d: Double => LiteValue.Real(d)
+                                            case s: String => LiteValue.Text(s)
+                                            case b: Uint8Array =>
+                                              LiteValue.Blob(ByteVector.fromUint8Array(b))
+                                          }.toList
+                                        case None => continue = false
+
                                       i += 1
 
-                                    (rows.result(), more)
+                                    (rows.result(), i == maxRows)
                                   }.flatMap { (rows, more) =>
                                     rows
                                       .traverse(query.decoder.decode.runA(_))

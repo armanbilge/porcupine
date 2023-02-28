@@ -37,6 +37,6 @@ private[porcupine] trait Statement extends js.Object:
 
   def raw(toggleState: Boolean): Statement = js.native
 
-  def iterate(bindParameters: Any*): js.Iterator[js.Array[Any]] = js.native
+  def iterate(bindParameters: Any*): js.Iterator[js.UndefOr[js.Array[Any]]] = js.native
 
   def run(bindParameters: Any*): js.Object = js.native
