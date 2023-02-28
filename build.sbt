@@ -44,6 +44,7 @@ lazy val core = crossProject(JVMPlatform, JSPlatform, NativePlatform)
       "co.fs2" %%% "fs2-core" % "3.6.1",
       "org.scodec" %%% "scodec-bits" % "1.1.36",
     ),
+    (Test / test) := (Test / run).toTask("").value,
   )
   .jvmSettings(
     libraryDependencies ++= Seq(
