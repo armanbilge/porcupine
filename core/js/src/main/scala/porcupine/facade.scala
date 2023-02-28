@@ -21,23 +21,22 @@ import scala.scalajs.js
 import scala.scalajs.js.annotation.JSImport
 
 @js.native
-@JSImport("sqlite3")
-private[porcupine] class Database(filename: String, cb: js.Function1[js.Error, Unit])
-    extends js.Object:
+@JSImport("better-sqlite3", JSImport.Default)
+private[porcupine] class Database(filename: String) extends js.Object:
 
-  def close(cb: js.Function1[js.Error, Unit]): Unit = js.native
+  def prepare(sql: String): Statement = js.native
 
-  def prepare(sql: String, cb: js.Function1[js.Error, Unit]): Statement = js.native
+  def close(): Database = js.native
 
-  def interrupt(): Unit = js.native
+  def defaultSafeIntegers(toggleState: Boolean): Database = js.native
 
 @js.native
 private[porcupine] trait Statement extends js.Object:
 
-  def bind(params: Any*): Statement = js.native
+  def reader: Boolean = js.native
 
-  def reset(cb: js.Function0[Unit]): Statement = js.native
+  def raw(toggleState: Boolean): Statement = js.native
 
-  def finalize(cb: js.Function0[Unit]): Unit = js.native
+  def iterate(bindParameters: Any*): js.Iterator[js.Array[Any]] = js.native
 
-  def get(cb: js.Function2[js.Error, js.UndefOr[js.Array[Any]], Unit]): Statement = js.native
+  def run(bindParameters: Any*): js.Object = js.native

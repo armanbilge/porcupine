@@ -20,106 +20,73 @@ import cats.effect.kernel.Async
 import cats.effect.kernel.Resource
 import cats.effect.std.Mutex
 import cats.syntax.all.*
+import scodec.bits.ByteVector
 
 import scala.scalajs.js
 import scala.scalajs.js.JSConverters.*
+import scala.scalajs.js.typedarray.Uint8Array
 
 private abstract class DatabasePlatform:
   def open[F[_]](filename: String)(implicit F: Async[F]): Resource[F, Database[F]] =
     Resource.eval(Mutex[F]).flatMap { mutex =>
       Resource
-        .make {
-          F.async_[sqlite3.Database] { cb =>
-            lazy val db: sqlite3.Database = new sqlite3.Database(
-              filename,
-              e => cb(Option(e).map(js.JavaScriptException(_)).toLeft(db)),
-            )
-            db // init
-            ()
-          }
-        } { db =>
-          mutex.lock.surround {
-            F.async_[Unit] { cb =>
-              db.close(e => cb(Option(e).map(js.JavaScriptException(_)).toLeft(())))
-            }
-          }
-        }
+        .make(F.delay(new sqlite3.Database(filename)))(db => F.delay(db.close()))
+        .evalTap(db => F.delay(db.defaultSafeIntegers(true)))
         .map { db =>
           new:
             def prepare[A, B](query: Query[A, B]): Resource[F, Statement[F, A, B]] =
               Resource
-                .make {
-                  mutex.lock.surround {
-                    F.async[sqlite3.Statement] { cb =>
-                      F.delay {
-                        lazy val statement: sqlite3.Statement =
-                          db.prepare(
-                            query.sql,
-                            e => cb(Option(e).map(js.JavaScriptException(_)).toLeft(statement)),
-                          )
-                        statement // init
-                        Some(F.delay(db.interrupt()))
-                      }
-                    }
-                  }
-                } { statement =>
-                  mutex.lock.surround {
-                    F.async_ { cb =>
-                      statement.finalize(() => cb(Either.unit))
-                    }
-                  }
-                }
+                .eval(mutex.lock.surround(F.delay(db.prepare(query.sql))))
                 .map { statement =>
-                  new:
-                    def cursor(args: A): Resource[F, Cursor[F, B]] = mutex.lock *>
-                      Resource
-                        .make {
-                          F.async[Unit] { cb =>
-                            F.delay {
-                              val jsArgs = query.encoder.encode(args).map {
-                                case LiteValue.Null => null
-                                case LiteValue.Integer(value) => value.toString
-                                case LiteValue.Real(value) => value
-                                case LiteValue.Text(value) => value
-                                case LiteValue.Blob(value) => value.toUint8Array
-                              }
+                  def bind(args: A) = query.encoder.encode(args).map {
+                    case LiteValue.Null => null
+                    case LiteValue.Integer(value) => js.BigInt(value.toString)
+                    case LiteValue.Real(value) => value
+                    case LiteValue.Text(value) => value
+                    case LiteValue.Blob(value) => value.toUint8Array
+                  }
 
-                              val jscb: js.Function1[js.Error, Unit] =
-                                e => cb(Option(e).map(js.JavaScriptException(_)).toLeft(()))
+                  if statement.reader then
+                    new:
+                      def cursor(args: A): Resource[F, Cursor[F, B]] = mutex.lock *>
+                        Resource
+                          .eval {
+                            F.delay(statement.iterate(bind(args)*)).map { iterator =>
+                              new:
+                                def fetch(maxRows: Int): F[(List[B], Boolean)] =
+                                  F.delay {
+                                    val rows = List.newBuilder[List[LiteValue]]
+                                    var i = 0
+                                    var more = true
+                                    while i < maxRows && more do
+                                      val entry = iterator.next()
+                                      rows += entry.value.map {
+                                        case null => LiteValue.Null
+                                        case i: js.BigInt =>
+                                          LiteValue.Integer(i.toString.toLong)
+                                        case d: Double => LiteValue.Real(d)
+                                        case s: String => LiteValue.Text(s)
+                                        case b: Uint8Array =>
+                                          LiteValue.Blob(ByteVector.fromUint8Array(b))
+                                      }.toList
+                                      more = !entry.done
+                                      i += 1
 
-                              statement.bind((jsArgs ::: jscb :: Nil)*)
-
-                              Some(F.delay(db.interrupt()))
-                            }
-                          }
-                        }(_ => F.async_[Unit](cb => statement.reset(() => cb(Either.unit))))
-                        .as {
-                          new:
-                            def fetch(maxRows: Int): F[(List[B], Boolean)] =
-                              F.async[Option[js.Array[Any]]] { cb =>
-                                F.delay {
-                                  statement.get { (e, r) =>
-                                    println((e, r))
-                                    js.Dynamic.global.console.log(r.asInstanceOf[js.Any])
-                                    cb(
-                                      Option(e)
-                                        .map(js.JavaScriptException(_))
-                                        .toLeft(r.toOption),
-                                    )
+                                    (rows.result(), more)
+                                  }.flatMap { (rows, more) =>
+                                    rows
+                                      .traverse(query.decoder.decode.runA(_))
+                                      .tupleRight(more)
+                                      .liftTo[F]
                                   }
-                                  Some(F.delay(db.interrupt()))
-                                }
-                              }.flatMap {
-                                case Some(row) =>
-                                  println(row)
-                                  row.map { x =>
-                                    println(x)
-                                  }.toList
-                                  ???
-                                case None => F.pure((Nil, false))
-                              }
+                            }
 
-                        }
+                          }
+                  else
+                    args =>
+                      mutex.lock *> Resource.eval {
+                        F.delay(statement.run(bind(args)*)).as(_ => F.pure(Nil, false))
+                      }
 
                 }
 
