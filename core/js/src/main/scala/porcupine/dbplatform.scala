@@ -37,6 +37,7 @@ private abstract class DatabasePlatform:
             def prepare[A, B](query: Query[A, B]): Resource[F, Statement[F, A, B]] =
               Resource
                 .eval(mutex.lock.surround(F.delay(db.prepare(query.sql))))
+                .evalTap(statement => F.delay(statement.raw(true)).whenA(statement.reader))
                 .map { statement =>
                   def bind(args: A) = query.encoder.encode(args).map {
                     case LiteValue.Null => null
