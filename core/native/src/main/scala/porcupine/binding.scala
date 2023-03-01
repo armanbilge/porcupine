@@ -23,6 +23,10 @@ private object sqlite3:
   final val SQLITE_OPEN_CREATE = 0x00000004
   final val SQLITE_OPEN_NOMUTEX = 0x00008000
 
+  def sqlite3_errstr(code: CInt): Ptr[CChar] = extern
+
+  def sqlite3_errmsg(db: Ptr[sqlite3]): Ptr[CChar] = extern
+
   def sqlite3_open_v2(
       filename: Ptr[CChar],
       ppDb: Ptr[Ptr[sqlite3]],
