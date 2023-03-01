@@ -65,4 +65,5 @@ lazy val core = crossProject(JVMPlatform, JSPlatform, NativePlatform)
   .nativeConfigure(_.enablePlugins(ScalaNativeBrewedConfigPlugin))
   .nativeSettings(
     nativeBrewFormulas += "sqlite",
+    nativeConfig ~= { c => c.withLinkingOptions(c.linkingOptions :+ "-lsqlite3") },
   )

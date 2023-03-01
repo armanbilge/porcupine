@@ -18,6 +18,34 @@ package porcupine
 
 import cats.effect.kernel.Async
 import cats.effect.kernel.Resource
+import cats.effect.std.Mutex
+
+import scala.scalanative.unsafe.*
+
+import sqlite3.*
 
 private abstract class DatabasePlatform:
-  def open[F[_]: Async](filename: String): Resource[F, Database[F]] = ???
+  def open[F[_]](filename: String)(using F: Async[F]): Resource[F, Database[F]] =
+    Resource.eval(Mutex[F]).flatMap { mutex =>
+      Resource
+        .make {
+          F.blocking {
+            val fn = (filename + '0').getBytes
+            val db = stackalloc[Ptr[sqlite3]]()
+            val flags = SQLITE_OPEN_READWRITE | SQLITE_OPEN_CREATE | SQLITE_OPEN_NOMUTEX
+            guard(sqlite3_open_v2(fn.at(0), db, flags, null))
+            !db
+          }
+        }(db => F.blocking(guard(sqlite3_close(db))))
+        .map { db =>
+          new:
+            def prepare[A, B](query: Query[A, B]): Resource[F, Statement[F, A, B]] = ???
+        }
+    }
+
+  inline private def guard(thunk: => CInt): Unit =
+    val rtn = thunk
+    if rtn != SQLITE_OK then throw new RuntimeException(fromCString(sqlite3_errstr(rtn)))
+
+  inline private def guard(db: Ptr[sqlite3])(thunk: => CInt): Unit =
+    if thunk != SQLITE_OK then throw new RuntimeException(fromCString(sqlite3_errmsg(db)))
