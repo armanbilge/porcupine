@@ -16,7 +16,7 @@
       {
         devShell = pkgs.devshell.mkShell {
           imports = [ typelevel-nix.typelevelShell ];
-          name = "fs2-shell";
+          name = "porcupine-shell";
           typelevelShell = {
             jdk.package = pkgs.jdk17;
             nodejs.enable = true;
