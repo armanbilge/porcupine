@@ -33,7 +33,13 @@ private abstract class DatabasePlatform:
             val fn = (filename + 0.toChar).getBytes
             val db = stackalloc[Ptr[sqlite3]]()
             val flags = SQLITE_OPEN_READWRITE | SQLITE_OPEN_CREATE | SQLITE_OPEN_NOMUTEX
-            guard(sqlite3_open_v2(fn.at(0), db, flags, null))
+
+            try guard(sqlite3_open_v2(fn.at(0), db, flags, null))
+            catch
+              case t: Throwable =>
+                if (!db ne null) guard(sqlite3_close(!db))
+                throw t
+
             !db
           }
         }(db => F.blocking(guard(sqlite3_close(db))))
