@@ -30,7 +30,7 @@ private abstract class DatabasePlatform:
       Resource
         .make {
           F.blocking {
-            val fn = (filename + '0').getBytes
+            val fn = (filename + 0.toChar).getBytes
             val db = stackalloc[Ptr[sqlite3]]()
             val flags = SQLITE_OPEN_READWRITE | SQLITE_OPEN_CREATE | SQLITE_OPEN_NOMUTEX
             guard(sqlite3_open_v2(fn.at(0), db, flags, null))
