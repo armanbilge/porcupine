@@ -4,8 +4,8 @@ import scala.scalanative.unsafe.*
 
 @extern
 private object sqlite3:
-  type sqlite3
-  type sqlite3_stmt
+  type sqlite3 = CStruct0
+  type sqlite3_stmt = CStruct0
   type sqlite3_int64 = CLong
   type sqlite3_uint64 = CLong
 
