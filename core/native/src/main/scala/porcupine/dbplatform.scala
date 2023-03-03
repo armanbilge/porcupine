@@ -19,6 +19,7 @@ package porcupine
 import cats.effect.kernel.Async
 import cats.effect.kernel.Resource
 import cats.effect.std.Mutex
+import cats.syntax.all.*
 
 import scala.scalanative.unsafe.*
 
@@ -57,8 +58,44 @@ private abstract class DatabasePlatform:
                 } { stmt =>
                   F.delay(guard(db)(sqlite3_finalize(stmt)))
                 }
-                .map { args =>
-                  ???
+                .map { stmt => args =>
+                  Resource
+                    .make {
+                      F.delay {
+                        var i = 0
+                        query.encoder.encode(args).flatMap {
+                          case LiteValue.Null =>
+                            guard(db)(sqlite3_bind_null(stmt, i))
+                            i += 1
+                            Nil
+                          case LiteValue.Integer(j) =>
+                            guard(db)(sqlite3_bind_int64(stmt, i, j))
+                            i += 1
+                            Nil
+                          case LiteValue.Real(d) =>
+                            guard(db)(sqlite3_bind_double(stmt, i, d))
+                            i += 1
+                            Nil
+                          case LiteValue.Text(s) =>
+                            val b = s.getBytes
+                            guard(db)(
+                              sqlite3_bind_text(stmt, i, b.at(0), b.length, SQLITE_STATIC),
+                            )
+                            i += 1
+                            List(b)
+                          case LiteValue.Blob(b) =>
+                            val ba = b.toArray
+                            guard(db)(
+                              sqlite3_bind_blob64(stmt, i, ba.at(0), ba.length, SQLITE_STATIC),
+                            )
+                            i += 1
+                            List(ba)
+                        }
+                      }
+                    }(x => F.delay(x).void) // to keep in sight of gc
+                    .as { maxRows =>
+                      ???
+                    }
                 }
         }
     }
