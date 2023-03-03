@@ -49,17 +49,19 @@ private abstract class DatabasePlatform:
             def prepare[A, B](query: Query[A, B]): Resource[F, Statement[F, A, B]] =
               Resource
                 .make {
-                  F.delay {
-                    val zSql = query.sql.getBytes
-                    val stmt = stackalloc[Ptr[sqlite3_stmt]]()
-                    guard(db)(sqlite3_prepare_v2(db, zSql.at(0), zSql.length, stmt, null))
-                    !stmt
+                  mutex.lock.surround {
+                    F.delay {
+                      val zSql = query.sql.getBytes
+                      val stmt = stackalloc[Ptr[sqlite3_stmt]]()
+                      guard(db)(sqlite3_prepare_v2(db, zSql.at(0), zSql.length, stmt, null))
+                      !stmt
+                    }
                   }
                 } { stmt =>
-                  F.delay(guard(db)(sqlite3_finalize(stmt)))
+                  mutex.lock.surround(F.delay(guard(db)(sqlite3_finalize(stmt))))
                 }
                 .map { stmt => args =>
-                  Resource
+                  mutex.lock *> Resource
                     .make {
                       F.delay {
                         var i = 0
