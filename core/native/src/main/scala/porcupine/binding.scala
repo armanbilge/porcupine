@@ -10,6 +10,8 @@ private object sqlite3:
   type sqlite3_uint64 = CLong
 
   final val SQLITE_OK = 0
+  final val SQLITE_ROW = 100
+  final val SQLITE_DONE = 101
 
   final val SQLITE_INTEGER = 1
   final val SQLITE_FLOAT = 2

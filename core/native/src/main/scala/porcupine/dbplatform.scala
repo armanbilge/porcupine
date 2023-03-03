@@ -20,6 +20,7 @@ import cats.effect.kernel.Async
 import cats.effect.kernel.Resource
 import cats.effect.std.Mutex
 import cats.syntax.all.*
+import scodec.bits.ByteVector
 
 import scala.scalanative.unsafe.*
 
@@ -96,7 +97,39 @@ private abstract class DatabasePlatform:
                       }
                     }(x => F.delay(x).void) // to keep in sight of gc
                     .as { maxRows =>
-                      ???
+                      F.blocking {
+                        val rows = List.newBuilder[List[LiteValue]]
+                        var i = 0
+                        var continue = true
+                        while i < maxRows && continue do
+                          sqlite3_step(stmt) match
+                            case SQLITE_ROW =>
+                              rows += List.tabulate(sqlite3_column_count(stmt)) { j =>
+                                sqlite3_column_type(stmt, j) match
+                                  case SQLITE_NULL =>
+                                    LiteValue.Null
+                                  case SQLITE_INTEGER =>
+                                    LiteValue.Integer(sqlite3_column_int64(stmt, j))
+                                  case SQLITE_FLOAT =>
+                                    LiteValue.Real(sqlite3_column_double(stmt, j))
+                                  case SQLITE_TEXT =>
+                                    LiteValue.Text(fromCString(sqlite3_column_text(stmt, j)))
+                                  case SQLITE_BLOB =>
+                                    LiteValue.Blob(
+                                      ByteVector.fromPtr(
+                                        sqlite3_column_blob(stmt, j),
+                                        sqlite3_column_bytes(stmt, j),
+                                      ),
+                                    )
+                              }
+                            case SQLITE_DONE => continue = false
+                            case other => guard(db)(other)
+
+                          i += 1
+                        (rows.result(), continue)
+                      }.flatMap { (rows, continue) =>
+                        rows.traverse(query.decoder.decode.runA(_).liftTo).tupleRight(continue)
+                      }
                     }
                 }
         }
