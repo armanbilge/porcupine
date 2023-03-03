@@ -45,7 +45,21 @@ private abstract class DatabasePlatform:
         }(db => F.blocking(guard(sqlite3_close(db))))
         .map { db =>
           new:
-            def prepare[A, B](query: Query[A, B]): Resource[F, Statement[F, A, B]] = ???
+            def prepare[A, B](query: Query[A, B]): Resource[F, Statement[F, A, B]] =
+              Resource
+                .make {
+                  F.delay {
+                    val zSql = query.sql.getBytes
+                    val stmt = stackalloc[Ptr[sqlite3_stmt]]()
+                    guard(db)(sqlite3_prepare_v2(db, zSql.at(0), zSql.length, stmt, null))
+                    !stmt
+                  }
+                } { stmt =>
+                  F.delay(guard(db)(sqlite3_finalize(stmt)))
+                }
+                .map { args =>
+                  ???
+                }
         }
     }
 
