@@ -65,7 +65,7 @@ private abstract class DatabasePlatform:
                   mutex.lock *> Resource
                     .make {
                       F.delay {
-                        var i = 0
+                        var i = 1
                         query.encoder.encode(args).flatMap {
                           case LiteValue.Null =>
                             guard(db)(sqlite3_bind_null(stmt, i))
