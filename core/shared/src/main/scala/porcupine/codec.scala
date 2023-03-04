@@ -70,6 +70,9 @@ object Decoder:
     def ap[A, B](ff: Decoder[A => B])(fa: Decoder[A]) = new:
       def decode = ff.decode.ap(fa.decode)
 
+    override def product[A, B](fa: Decoder[A], fb: Decoder[B]) = new:
+      def decode = fa.decode.product(fb.decode)
+
     override def map[A, B](fa: Decoder[A])(f: A => B) = new:
       def decode = fa.decode.map(f)
 
