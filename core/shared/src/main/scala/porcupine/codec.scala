@@ -23,6 +23,8 @@ import cats.data.StateT
 import cats.syntax.all.*
 import scodec.bits.ByteVector
 
+import scala.deriving.Mirror
+
 trait Encoder[A]:
   outer =>
 
@@ -63,6 +65,14 @@ trait Decoder[A]:
     outer.map(Some(_)).or(Codec.`null`.asDecoder.as(None))
 
 object Decoder:
+  extension [T <: Tuple](tail: Decoder[T])
+    def *:[H](head: Decoder[H]): Decoder[H *: T] = (head, tail).mapN(_ *: _)
+
+  extension [A <: Tuple](fa: Decoder[A])
+    def pmap[P <: Product](using
+        m: Mirror.ProductOf[P] { type MirroredElemTypes = A },
+    ): Decoder[P] = fa.map(m.fromProduct(_))
+
   given Applicative[Decoder] = new:
     def pure[A](a: A) = new:
       def decode = StateT.pure(a)
