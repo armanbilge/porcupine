@@ -21,6 +21,11 @@ import cats.Monoid
 import cats.arrow.Profunctor
 import cats.syntax.all.*
 
+import scala.quoted.Expr
+import scala.quoted.Exprs
+import scala.quoted.Quotes
+import scala.quoted.Varargs
+
 final class Query[A, B](val sql: String, val encoder: Encoder[A], val decoder: Decoder[B])
 
 object Query:
@@ -52,3 +57,46 @@ object Fragment:
     def empty = ContravariantMonoidal[Fragment].unit
     def combine(x: Fragment[Unit], y: Fragment[Unit]) =
       (x, y).contramapN(_ => ((), ()))
+
+extension (inline sc: StringContext)
+  transparent inline def sql(inline args: Any*): Any =
+    ${ sqlImpl('sc, 'args) }
+
+private def sqlImpl(
+    scExpr: Expr[StringContext],
+    argsExpr: Expr[Seq[Any]],
+)(using Quotes): Expr[Any] =
+
+  val parts = scExpr match
+    case '{ StringContext(${ Varargs(Exprs(parts)) }: _*) } => parts.toList.map(Expr(_))
+    case _ => List.empty
+
+  val args = Varargs.unapply(argsExpr).toList.flatMap(_.toList)
+
+  val fragment = parts.zipAll(args, '{ "" }, '{ "" }).foldLeft('{ "" }) {
+    case ('{ $acc: String }, ('{ $p: String }, '{ $s: String })) => '{ $acc + $p + $s }
+    case ('{ $acc: String }, ('{ $p: String }, '{ $e: Encoder[t] })) => '{ $acc + $p + "?" }
+    case ('{ $acc: String }, ('{ $p: String }, '{ $f: Fragment[t] })) =>
+      '{ $acc + $p + $f.fragment }
+  }
+
+  val encoder = args.collect {
+    case '{ $e: Encoder[t] } => e
+    case '{ $f: Fragment[t] } => '{ $f.encoder }
+  } match
+    case Nil => '{ Codec.unit }
+    case '{ $e: Encoder[t] } :: Nil => e
+    case many =>
+      many.foldRight('{ ContravariantMonoidal[Encoder].point(EmptyTuple: Tuple) }) {
+        case ('{ $head: Encoder[h] }, '{ $tail: Encoder[Tuple] }) =>
+          '{
+            ($head, $tail).contramapN {
+              case h *: t => (h.asInstanceOf[h], t)
+              case _ => throw new AssertionError
+            }
+          }
+      }
+
+  (fragment, encoder) match
+    case ('{ $s: String }, '{ $e: Encoder[a] }) => '{ Fragment($s, $e) }
+    case _ => sys.error("porcupine pricked itself")
