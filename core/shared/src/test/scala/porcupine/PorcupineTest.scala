@@ -31,11 +31,11 @@ object PorcupineTest extends IOApp.Simple:
         sql"insert into porcupine values(${`null`}, $integer, $real, $text, $blob);".command,
         (None, 42L, 3.14, "quill-pig", ByteVector(0, 1, 2, 3)),
       ) *>
-      db.execute(
+      db.unique(
         sql"select b, t, r, i, n from porcupine;"
           .query(blob *: text *: real *: integer *: `null` *: nil),
       ).flatMap {
-        case List((ByteVector(0, 1, 2, 3), "quill-pig", 3.14, 42, None)) => IO.unit
+        case (ByteVector(0, 1, 2, 3), "quill-pig", 3.14, 42, None) => IO.unit
         case other => IO.raiseError(new AssertionError(other))
       }
   }
