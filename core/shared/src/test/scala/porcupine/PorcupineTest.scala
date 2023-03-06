@@ -35,11 +35,8 @@ object PorcupineTest extends IOApp.Simple:
         _.cursor((None, 42, 3.14, "quill-pig", ByteVector(0, 1, 2, 3))).use(_.fetch(1).void),
       ) *>
       db.prepare(
-        Query(
-          "select b, t, r, i, n from porcupine;",
-          Codec.unit,
-          (Codec.blob, Codec.text, Codec.real, Codec.integer, Codec.`null`).tupled,
-        ),
+        sql"select b, t, r, i, n from porcupine;"
+          .query(blob *: text *: real *: integer *: `null` *: nil),
       ).use {
         _.cursor(()).use {
           _.fetch(100).flatMap {

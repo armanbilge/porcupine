@@ -65,8 +65,8 @@ trait Decoder[A]:
     outer.map(Some(_)).or(Codec.`null`.asDecoder.as(None))
 
 object Decoder:
-  extension [T <: Tuple](tail: Decoder[T])
-    def *:[H](head: Decoder[H]): Decoder[H *: T] = (head, tail).mapN(_ *: _)
+  extension [H](head: Decoder[H])
+    def *:[T <: Tuple](tail: Decoder[T]): Decoder[H *: T] = (head, tail).mapN(_ *: _)
 
   extension [A <: Tuple](fa: Decoder[A])
     def pmap[P <: Product](using
@@ -140,6 +140,8 @@ object Codec:
   def unit: Codec[Unit] = new:
     def encode(u: Unit) = Nil
     def decode = StateT.pure(())
+
+  def nil: Codec[EmptyTuple] = unit.imap(_ => EmptyTuple)(_ => ())
 
   given InvariantMonoidal[Codec] = new:
     def unit = Codec.unit
