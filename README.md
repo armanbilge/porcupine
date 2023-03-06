@@ -36,11 +36,12 @@ You must provide a native build of SQLite3. Here are three interesting ways to d
 nativeConfig ~= { c => c.withLinkingOptions(c.linkingOptions :+ "-lsqlite3") }
 ```
 
-2. Statically linking a pre-compiled SQLite into your binary. For example:
+2. Statically linking a pre-compiled SQLite into your binary. [sn-vcpkg] is a great way to do this. An ad-hoc configuration might look like this:
 ```scala
 nativeConfig ~= { c => c.withLinkingOptions(c.linkingOptions :+ "/usr/local/Cellar/sqlite/3.41.0/lib/libsqlite3.a") }
 ```
 
 3. Compiling SQLite as part of your project. You can download the SQLite [amalgation] as a single `sqlite3.c` file and place it in your `resources/scala-native` directory.
 
+[sn-vcpkg]: https://github.com/indoorvivants/sn-vcpkg
 [amalgation]: https://www.sqlite.org/amalgamation.html
