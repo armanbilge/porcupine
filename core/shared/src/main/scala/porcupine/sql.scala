@@ -87,16 +87,21 @@ private def sqlImpl(
     case Nil => '{ Codec.unit }
     case '{ $e: Encoder[t] } :: Nil => e
     case many =>
-      many.foldRight('{ ContravariantMonoidal[Encoder].point(EmptyTuple: Tuple) }) {
-        case ('{ $head: Encoder[h] }, '{ $tail: Encoder[Tuple] }) =>
+      many.foldRight[Expr[Any]]('{ ContravariantMonoidal[Encoder].point(EmptyTuple) }) {
+        case ('{ $head: Encoder[h] }, '{ $tail: Encoder[EmptyTuple] }) =>
           '{
-            ($head, $tail).contramapN {
-              case h *: t => (h.asInstanceOf[h], t)
-              case _ => throw new AssertionError
+            ($head, $tail).contramapN[h *: EmptyTuple] { case h *: EmptyTuple =>
+              (h, EmptyTuple)
+            }
+          }
+        case ('{ $head: Encoder[h] }, '{ $tail: Encoder[ht *: t] }) =>
+          '{
+            ($head, $tail).contramapN[h *: ht *: t] { case h *: t =>
+              (h, t)
             }
           }
       }
 
   (fragment, encoder) match
-    case ('{ $s: String }, '{ $e: Encoder[a] }) => '{ Fragment($s, $e) }
+    case ('{ $s: String }, '{ $e: Encoder[a] }) => '{ Fragment[a]($s, $e) }
     case _ => sys.error("porcupine pricked itself")
