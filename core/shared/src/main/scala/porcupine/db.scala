@@ -110,15 +110,15 @@ private abstract class AbstractStatement[F[_], A, B](using F: MonadCancelThrow[F
 
   final def execute(using Unit <:< B)(args: A) = cursor(args).use(_.fetch(1).void)
 
-  final def option(args: A) = cursor(args).use(_.fetch(1).flatMap {
-    case (Nil, false) => F.pure(None)
-    case (head :: Nil, false) => F.pure(Some(head))
+  final def option(args: A) = cursor(args).use(_.fetch(2).flatMap {
+    case (Nil, _) => F.pure(None)
+    case (head :: Nil, _) => F.pure(Some(head))
     case _ => F.raiseError(new RuntimeException("More than 1 row"))
   })
 
-  final def unique(args: A) = cursor(args).use(_.fetch(1).flatMap {
-    case (Nil, false) => F.raiseError(new NoSuchElementException)
-    case (head :: Nil, false) => F.pure(head)
+  final def unique(args: A) = cursor(args).use(_.fetch(2).flatMap {
+    case (Nil, _) => F.raiseError(new NoSuchElementException)
+    case (head :: Nil, _) => F.pure(head)
     case _ => F.raiseError(new RuntimeException("More than 1 row"))
   })
 
