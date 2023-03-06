@@ -33,7 +33,7 @@ private abstract class DatabasePlatform:
         .make(F.delay(new sqlite3.Database(filename)))(db => F.delay(db.close()))
         .evalTap(db => F.delay(db.defaultSafeIntegers(true)))
         .map { db =>
-          new:
+          new AbstractDatabase[F]:
             def prepare[A, B](query: Query[A, B]): Resource[F, Statement[F, A, B]] =
               Resource
                 .eval(mutex.lock.surround(F.delay(db.prepare(query.sql))))
@@ -48,7 +48,7 @@ private abstract class DatabasePlatform:
                   }
 
                   if statement.reader then
-                    new:
+                    new AbstractStatement[F, A, B]:
                       def cursor(args: A): Resource[F, Cursor[F, B]] = mutex.lock *>
                         Resource
                           .eval {
@@ -87,10 +87,11 @@ private abstract class DatabasePlatform:
 
                           }
                   else
-                    args =>
-                      mutex.lock *> Resource.eval {
-                        F.delay(statement.run(bind(args)*)).as(_ => F.pure(Nil, false))
-                      }
+                    new AbstractStatement[F, A, B]:
+                      def cursor(args: A): Resource[F, Cursor[F, B]] =
+                        mutex.lock *> Resource.eval {
+                          F.delay(statement.run(bind(args)*)).as(_ => F.pure(Nil, false))
+                        }
 
                 }
 

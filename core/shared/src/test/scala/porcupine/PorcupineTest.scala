@@ -26,23 +26,16 @@ import Codec.*
 object PorcupineTest extends IOApp.Simple:
 
   def run = Database.open[IO](":memory:").use { db =>
-    db.prepare(sql"create table porcupine (n, i, r, t, b);".command).use {
-      _.cursor(()).use(_.fetch(1).void)
-    } *>
-      db.prepare(
+    db.execute(sql"create table porcupine (n, i, r, t, b);".command) *>
+      db.execute(
         sql"insert into porcupine values(${`null`}, $integer, $real, $text, $blob);".command,
-      ).use(
-        _.cursor((None, 42, 3.14, "quill-pig", ByteVector(0, 1, 2, 3))).use(_.fetch(1).void),
+        (None, 42L, 3.14, "quill-pig", ByteVector(0, 1, 2, 3)),
       ) *>
-      db.prepare(
+      db.execute(
         sql"select b, t, r, i, n from porcupine;"
           .query(blob *: text *: real *: integer *: `null` *: nil),
-      ).use {
-        _.cursor(()).use {
-          _.fetch(100).flatMap {
-            case (List((ByteVector(0, 1, 2, 3), "quill-pig", 3.14, 42, None)), false) => IO.unit
-            case other => IO.raiseError(new AssertionError(other))
-          }
-        }
+      ).flatMap {
+        case List((ByteVector(0, 1, 2, 3), "quill-pig", 3.14, 42, None)) => IO.unit
+        case other => IO.raiseError(new AssertionError(other))
       }
   }

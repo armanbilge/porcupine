@@ -31,7 +31,7 @@ private abstract class DatabasePlatform:
       mutex <- Resource.eval(Mutex[F])
       connection <- Resource
         .fromAutoCloseable(F.blocking(DriverManager.getConnection("jdbc:sqlite:" + filename)))
-    yield new:
+    yield new AbstractDatabase[F]:
       def prepare[A, B](query: Query[A, B]): Resource[F, Statement[F, A, B]] =
         Resource
           .fromAutoCloseable {
@@ -40,7 +40,7 @@ private abstract class DatabasePlatform:
             }
           }
           .map { statement =>
-            new:
+            new AbstractStatement[F, A, B]:
               def cursor(args: A): Resource[F, Cursor[F, B]] = mutex.lock *>
                 Resource
                   .make {
