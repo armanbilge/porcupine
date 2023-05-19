@@ -41,7 +41,7 @@ lazy val core = crossProject(JVMPlatform, JSPlatform, NativePlatform)
     libraryDependencies ++= Seq(
       "org.typelevel" %%% "cats-core" % "2.9.0",
       "org.typelevel" %%% "cats-effect" % "3.4.8",
-      "co.fs2" %%% "fs2-core" % "3.6.1",
+      "co.fs2" %%% "fs2-core" % "3.7.0",
       "org.scodec" %%% "scodec-bits" % "1.1.37",
     ),
     Test / test := (Test / run).toTask("").value,
@@ -49,7 +49,7 @@ lazy val core = crossProject(JVMPlatform, JSPlatform, NativePlatform)
   )
   .jvmSettings(
     libraryDependencies ++= Seq(
-      "org.xerial" % "sqlite-jdbc" % "3.41.2.1",
+      "org.xerial" % "sqlite-jdbc" % "3.41.2.2",
     ),
     fork := true,
   )
