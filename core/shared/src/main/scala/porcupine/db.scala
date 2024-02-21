@@ -127,7 +127,7 @@ private abstract class AbstractStatement[F[_], A, B](using F: MonadCancelThrow[F
       Stream
         .unfoldLoopEval(()) { _ =>
           cursor.fetch(chunkSize).map { (chunk, more) =>
-            (Chunk.seq(chunk), Option.when(more)(()))
+            (Chunk.from(chunk), Option.when(more)(()))
           }
         }
         .unchunks
