@@ -49,7 +49,7 @@ lazy val core = crossProject(JVMPlatform, JSPlatform, NativePlatform)
   )
   .jvmSettings(
     libraryDependencies ++= Seq(
-      "org.xerial" % "sqlite-jdbc" % "3.44.1.0",
+      "org.xerial" % "sqlite-jdbc" % "3.45.1.0",
     ),
     fork := true,
   )
