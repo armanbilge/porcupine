@@ -27,7 +27,7 @@ import scala.deriving.Mirror
 trait Encoder[A]:
   outer =>
 
-  def parameters: Int
+  def parameters: State[Int, List[Int]]
 
   def encode(a: A): List[LiteValue]
 
@@ -53,7 +53,7 @@ object Encoder:
 
     def product[A, B](fa: Encoder[A], fb: Encoder[B]) = new:
       def parameters =
-        fa.parameters + fb.parameters
+        (fa.parameters, fb.parameters).mapN(_ ++ _)
 
       def encode(ab: (A, B)) =
         val (a, b) = ab
@@ -130,7 +130,7 @@ object Codec:
       apply: T => LiteValue,
       unapply: PartialFunction[LiteValue, T],
   ) extends Codec[T] {
-    override def parameters: Int = 1
+    override def parameters: State[Int, List[Int]] = State(idx => (idx + 1, List(idx)))
     override def encode(a: T): List[LiteValue] = apply(a) :: Nil
     override def decode: StateT[Either[Throwable, *], List[LiteValue], T] = StateT {
       case unapply(l) :: tail => Right((tail, l))
@@ -154,7 +154,7 @@ object Codec:
     new Simple("NULL", _ => LiteValue.Null, { case LiteValue.Null => None })
 
   def unit: Codec[Unit] = new:
-    def parameters: Int = 0
+    def parameters = State.pure(List.empty)
     def encode(u: Unit) = Nil
     def decode = StateT.pure(())
 
@@ -165,7 +165,7 @@ object Codec:
 
     def product[A, B](fa: Codec[A], fb: Codec[B]) = new:
       def parameters =
-        fa.parameters + fb.parameters
+        (fa.parameters, fb.parameters).mapN(_ ++ _)
 
       def encode(ab: (A, B)) =
         val (a, b) = ab
