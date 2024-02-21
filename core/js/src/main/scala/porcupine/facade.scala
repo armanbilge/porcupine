@@ -17,9 +17,11 @@
 package porcupine
 package sqlite3
 
+import scala.annotation.nowarn
 import scala.scalajs.js
 import scala.scalajs.js.annotation.JSImport
 
+@nowarn
 @js.native
 @JSImport("better-sqlite3", JSImport.Default)
 private[porcupine] class Database(filename: String) extends js.Object:
