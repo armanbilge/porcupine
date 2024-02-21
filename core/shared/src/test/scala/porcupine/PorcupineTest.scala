@@ -29,7 +29,7 @@ object PorcupineTest extends IOApp.Simple:
     val q = `null` *: integer *: real *: text *: blob *: nil
     db.execute(sql"create table porcupine (n, i, r, t, b);".command) *>
       db.execute(
-        sql"insert into porcupine values(${ q });".command,
+        sql"insert into porcupine values(${q});".command,
         (None, 42L, 3.14, "quill-pig", ByteVector(0, 1, 2, 3)),
       ) *>
       db.unique(

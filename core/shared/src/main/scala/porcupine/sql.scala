@@ -35,8 +35,8 @@ object Query:
       Query(fab.sql, fab.encoder.contramap(f), fab.decoder.map(g))
 
 final class Fragment[A](
-  val parts: List[Either[String, Int]],
-  val encoder: Encoder[A]
+    val parts: List[Either[String, Int]],
+    val encoder: Encoder[A],
 ):
   def sql: String = parts.foldMap {
     case Left(s) => s
@@ -57,7 +57,9 @@ final class Fragment[A](
     val ps = head.map {
       _.leftMap(_.stripMargin(marginChar))
     }.toList ++ tail.map {
-      _.leftMap(str => str.takeWhile(_ != '\n') + str.dropWhile(_ != '\n').stripMargin(marginChar))
+      _.leftMap(str =>
+        str.takeWhile(_ != '\n') + str.dropWhile(_ != '\n').stripMargin(marginChar),
+      )
     }
     Fragment(ps, encoder)
 
@@ -90,14 +92,15 @@ private def sqlImpl(
   val args = Varargs.unapply(argsExpr).toList.flatMap(_.toList)
 
   // TODO appending to `List` is slow
-  val fragment = parts.zipAll(args, '{ "" }, '{ "" }).foldLeft('{ List.empty[Either[String, Int]] }) {
-    case ('{ $acc: List[Either[String, Int]] }, ('{ $p: String }, '{ $s: String })) =>
-      '{ $acc :+ Left($p) :+ Left($s) }
-    case ('{ $acc: List[Either[String, Int]] }, ('{ $p: String }, '{ $e: Encoder[t] })) =>
-      '{ $acc :+ Left($p) :+ Right($e.parameters) }
-    case ('{ $acc: List[Either[String, Int]] }, ('{ $p: String }, '{ $f: Fragment[t] })) =>
-      '{ $acc :+ Left($p) :++ $f.parts }
-  }
+  val fragment =
+    parts.zipAll(args, '{ "" }, '{ "" }).foldLeft('{ List.empty[Either[String, Int]] }) {
+      case ('{ $acc: List[Either[String, Int]] }, ('{ $p: String }, '{ $s: String })) =>
+        '{ $acc :+ Left($p) :+ Left($s) }
+      case ('{ $acc: List[Either[String, Int]] }, ('{ $p: String }, '{ $e: Encoder[t] })) =>
+        '{ $acc :+ Left($p) :+ Right($e.parameters) }
+      case ('{ $acc: List[Either[String, Int]] }, ('{ $p: String }, '{ $f: Fragment[t] })) =>
+        '{ $acc :+ Left($p) :++ $f.parts }
+    }
 
   val encoder = args.collect {
     case '{ $e: Encoder[t] } => e

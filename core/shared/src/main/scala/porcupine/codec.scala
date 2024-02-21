@@ -121,12 +121,14 @@ trait Codec[A] extends Encoder[A], Decoder[A]:
 
 object Codec:
   extension [H](head: Codec[H])
-    def *:[T <: Tuple](tail: Codec[T]): Codec[H *: T] = (head, tail).imapN(_ *: _) { case h *: t => (h, t) }
+    def *:[T <: Tuple](tail: Codec[T]): Codec[H *: T] = (head, tail).imapN(_ *: _) {
+      case h *: t => (h, t)
+    }
 
   private final class Simple[T](
-    name: String,
-    apply: T => LiteValue,
-    unapply: PartialFunction[LiteValue, T]
+      name: String,
+      apply: T => LiteValue,
+      unapply: PartialFunction[LiteValue, T],
   ) extends Codec[T] {
     override def parameters: Int = 1
     override def encode(a: T): List[LiteValue] = apply(a) :: Nil
