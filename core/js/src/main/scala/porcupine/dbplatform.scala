@@ -23,14 +23,13 @@ import cats.syntax.all.*
 import scodec.bits.ByteVector
 
 import scala.scalajs.js
-import scala.scalajs.js.JSConverters.*
 import scala.scalajs.js.typedarray.Uint8Array
 
 private abstract class DatabasePlatform:
   def open[F[_]](filename: String)(implicit F: Async[F]): Resource[F, Database[F]] =
     Resource.eval(Mutex[F]).flatMap { mutex =>
       Resource
-        .make(F.delay(new sqlite3.Database(filename)))(db => F.delay(db.close()))
+        .make(F.delay(new sqlite3.Database(filename)))(db => F.delay { db.close(); () })
         .evalTap(db => F.delay(db.defaultSafeIntegers(true)))
         .map { db =>
           new AbstractDatabase[F]:
