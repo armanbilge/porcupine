@@ -83,14 +83,14 @@ private abstract class DatabasePlatform:
                             case LiteValue.Text(s) =>
                               val b = s.getBytes
                               guard(db)(
-                                sqlite3_bind_text(stmt, i, b.at(0), b.length, SQLITE_STATIC),
+                                sqlite3_bind_text(stmt, i, b.at(0), b.length, null),
                               )
                               i += 1
                               List(b)
                             case LiteValue.Blob(b) =>
                               val ba = b.toArray
                               guard(db)(
-                                sqlite3_bind_blob64(stmt, i, ba.at(0), ba.length, SQLITE_STATIC),
+                                sqlite3_bind_blob64(stmt, i, ba.at(0), ba.length, null),
                               )
                               i += 1
                               List(ba)

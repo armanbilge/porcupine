@@ -7,7 +7,7 @@ ThisBuild / startYear := Some(2023)
 
 ThisBuild / tlSonatypeUseLegacyHost := false
 
-ThisBuild / crossScalaVersions := Seq("3.3.0")
+ThisBuild / crossScalaVersions := Seq("3.3.1")
 
 ThisBuild / githubWorkflowJavaVersions := Seq(JavaSpec.temurin("17"))
 ThisBuild / tlJdkRelease := Some(8)
@@ -40,16 +40,17 @@ lazy val core = crossProject(JVMPlatform, JSPlatform, NativePlatform)
     name := "porcupine",
     libraryDependencies ++= Seq(
       "org.typelevel" %%% "cats-core" % "2.9.0",
-      "org.typelevel" %%% "cats-effect" % "3.5.0",
+      "org.typelevel" %%% "cats-effect" % "3.5.3",
+      "org.typelevel" %%% "cats-core" % "2.10.0",
       "co.fs2" %%% "fs2-core" % "3.9.4",
-      "org.scodec" %%% "scodec-bits" % "1.1.37",
+      "org.scodec" %%% "scodec-bits" % "1.1.38",
     ),
     Test / test := (Test / run).toTask("").value,
     Test / mainClass := Some("porcupine.PorcupineTest"),
   )
   .jvmSettings(
     libraryDependencies ++= Seq(
-      "org.xerial" % "sqlite-jdbc" % "3.44.0.0",
+      "org.xerial" % "sqlite-jdbc" % "3.45.1.0",
     ),
     fork := true,
   )
