@@ -35,8 +35,6 @@ private object sqlite3:
   final val SQLITE_BLOB = 4
   final val SQLITE_NULL = 5
 
-  final val SQLITE_STATIC: Ptr[Byte] = null
-
   final val SQLITE_OPEN_READWRITE = 0x00000002
   final val SQLITE_OPEN_CREATE = 0x00000004
   final val SQLITE_OPEN_NOMUTEX = 0x00008000
