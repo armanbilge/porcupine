@@ -18,7 +18,6 @@ package porcupine
 
 import cats.effect.IOApp
 import cats.effect.IO
-import cats.syntax.all.*
 import scodec.bits.ByteVector
 import Codec.*
 
