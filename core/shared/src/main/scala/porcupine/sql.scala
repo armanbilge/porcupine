@@ -19,8 +19,8 @@ package porcupine
 import cats.ContravariantMonoidal
 import cats.Monoid
 import cats.arrow.Profunctor
+import cats.data.State
 import cats.syntax.all.*
-
 import scala.quoted.Expr
 import scala.quoted.Exprs
 import scala.quoted.Quotes
@@ -34,24 +34,40 @@ object Query:
     def dimap[A, B, C, D](fab: Query[A, B])(f: C => A)(g: B => D) =
       Query(fab.sql, fab.encoder.contramap(f), fab.decoder.map(g))
 
-final class Fragment[A](val fragment: String, val encoder: Encoder[A]):
-  def command: Query[A, Unit] = Query(fragment, encoder, Codec.unit)
+final class Fragment[A](
+  val parts: List[Either[String, Int]],
+  val encoder: Encoder[A]
+):
+  def sql: String = parts.foldMap {
+    case Left(s) => s
+    case Right(i) => ("?, " * (i - 1)) ++ "?"
+  }
 
-  def query[B](decoder: Decoder[B]): Query[A, B] = Query(fragment, encoder, decoder)
+  def command: Query[A, Unit] = Query(sql, encoder, Codec.unit)
 
-  def apply(a: A): Fragment[Unit] = Fragment(fragment, encoder.contramap(_ => a))
+  def query[B](decoder: Decoder[B]): Query[A, B] = Query(sql, encoder, decoder)
 
-  def stripMargin: Fragment[A] = Fragment(fragment.stripMargin, encoder)
+  def apply(a: A): Fragment[Unit] = Fragment(parts, encoder.contramap(_ => a))
+
+  def stripMargin: Fragment[A] = stripMargin('|')
+
   def stripMargin(marginChar: Char): Fragment[A] =
-    Fragment(fragment.stripMargin(marginChar), encoder)
+    val head = parts.headOption
+    val tail = parts.tail
+    val ps = head.map {
+      _.leftMap(_.stripMargin(marginChar))
+    }.toList ++ tail.map {
+      _.leftMap(str => str.takeWhile(_ != '\n') + str.dropWhile(_ != '\n').stripMargin(marginChar))
+    }
+    Fragment(ps, encoder)
 
 object Fragment:
   given ContravariantMonoidal[Fragment] = new:
-    val unit = Fragment("", Codec.unit)
+    val unit = Fragment(List.empty, Codec.unit)
     def product[A, B](fa: Fragment[A], fb: Fragment[B]) =
-      Fragment(fa.fragment + fb.fragment, (fa.encoder, fb.encoder).tupled)
+      Fragment(fa.parts ++ fb.parts, (fa.encoder, fb.encoder).tupled)
     def contramap[A, B](fa: Fragment[A])(f: B => A) =
-      Fragment(fa.fragment, fa.encoder.contramap(f))
+      Fragment(fa.parts, fa.encoder.contramap(f))
 
   given Monoid[Fragment[Unit]] = new:
     def empty = ContravariantMonoidal[Fragment].unit
@@ -73,11 +89,14 @@ private def sqlImpl(
 
   val args = Varargs.unapply(argsExpr).toList.flatMap(_.toList)
 
-  val fragment = parts.zipAll(args, '{ "" }, '{ "" }).foldLeft('{ "" }) {
-    case ('{ $acc: String }, ('{ $p: String }, '{ $s: String })) => '{ $acc + $p + $s }
-    case ('{ $acc: String }, ('{ $p: String }, '{ $e: Encoder[t] })) => '{ $acc + $p + "?" }
-    case ('{ $acc: String }, ('{ $p: String }, '{ $f: Fragment[t] })) =>
-      '{ $acc + $p + $f.fragment }
+  // TODO appending to `List` is slow
+  val fragment = parts.zipAll(args, '{ "" }, '{ "" }).foldLeft('{ List.empty[Either[String, Int]] }) {
+    case ('{ $acc: List[Either[String, Int]] }, ('{ $p: String }, '{ $s: String })) =>
+      '{ $acc :+ Left($p) :+ Left($s) }
+    case ('{ $acc: List[Either[String, Int]] }, ('{ $p: String }, '{ $e: Encoder[t] })) =>
+      '{ $acc :+ Left($p) :+ Right($e.parameters) }
+    case ('{ $acc: List[Either[String, Int]] }, ('{ $p: String }, '{ $f: Fragment[t] })) =>
+      '{ $acc :+ Left($p) :++ $f.parts }
   }
 
   val encoder = args.collect {
@@ -103,5 +122,5 @@ private def sqlImpl(
       }
 
   (fragment, encoder) match
-    case ('{ $s: String }, '{ $e: Encoder[a] }) => '{ Fragment[a]($s, $e) }
+    case ('{ $s: List[Either[String, Int]] }, '{ $e: Encoder[a] }) => '{ Fragment[a]($s, $e) }
     case _ => sys.error("porcupine pricked itself")
