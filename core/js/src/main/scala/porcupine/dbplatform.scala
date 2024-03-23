@@ -52,7 +52,12 @@ private abstract class DatabasePlatform:
                       def cursor(args: A): Resource[F, Cursor[F, B]] = mutex.lock *>
                         Resource
                           .eval {
-                            F.delay(statement.iterate(bind(args)*)).map { iterator =>
+                            val argsList = bind(args)
+                            val argsDict: js.Dictionary[Any] =
+                              js.Dictionary(argsList.zipWithIndex.map { case (v, idx) =>
+                                (s"${idx + 1}", v)
+                              }*)
+                            F.delay(statement.iterate(argsDict)).map { iterator =>
                               new:
                                 def fetch(maxRows: Int): F[(List[B], Boolean)] =
                                   F.delay {
@@ -90,7 +95,12 @@ private abstract class DatabasePlatform:
                     new AbstractStatement[F, A, B]:
                       def cursor(args: A): Resource[F, Cursor[F, B]] =
                         mutex.lock *> Resource.eval {
-                          F.delay(statement.run(bind(args)*)).as(_ => F.pure(Nil, false))
+                          val argsList = bind(args)
+                          val argsDict: js.Dictionary[Any] =
+                            js.Dictionary(argsList.zipWithIndex.map { case (v, idx) =>
+                              (s"${idx + 1}", v)
+                            }*)
+                          F.delay(statement.run(argsDict)).as(_ => F.pure(Nil, false))
                         }
 
                 }
