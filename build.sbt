@@ -12,9 +12,9 @@ ThisBuild / tlJdkRelease := Some(8)
 
 ThisBuild / githubWorkflowBuildPreamble ++= Seq(
   WorkflowStep.Use(
-    UseRef.Public("actions", "setup-node", "v3"),
-    name = Some("Setup NodeJS v18 LTS"),
-    params = Map("node-version" -> "18", "cache" -> "npm"),
+    UseRef.Public("actions", "setup-node", "v4"),
+    name = Some("Setup NodeJS v22 LTS"),
+    params = Map("node-version" -> "22", "cache" -> "npm"),
     cond = Some("matrix.project == 'rootJS'"),
   ),
   WorkflowStep.Run(

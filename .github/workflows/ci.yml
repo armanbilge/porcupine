@@ -52,11 +52,11 @@ jobs:
         if: matrix.java == 'temurin@17' && steps.setup-java-temurin-17.outputs.cache-hit == 'false'
         run: sbt +update
 
-      - name: Setup NodeJS v18 LTS
+      - name: Setup NodeJS v22 LTS
         if: matrix.project == 'rootJS'
-        uses: actions/setup-node@v3
+        uses: actions/setup-node@v4
         with:
-          node-version: 18
+          node-version: 22
           cache: npm
 
       - if: matrix.project == 'rootJS'
