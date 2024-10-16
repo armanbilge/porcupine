@@ -5,8 +5,6 @@ ThisBuild / organizationName := "Arman Bilge"
 ThisBuild / developers += tlGitHubDev("armanbilge", "Arman Bilge")
 ThisBuild / startYear := Some(2023)
 
-ThisBuild / tlSonatypeUseLegacyHost := false
-
 ThisBuild / crossScalaVersions := Seq("3.3.1")
 
 ThisBuild / githubWorkflowJavaVersions := Seq(JavaSpec.temurin("17"))
@@ -14,9 +12,9 @@ ThisBuild / tlJdkRelease := Some(8)
 
 ThisBuild / githubWorkflowBuildPreamble ++= Seq(
   WorkflowStep.Use(
-    UseRef.Public("actions", "setup-node", "v3"),
-    name = Some("Setup NodeJS v18 LTS"),
-    params = Map("node-version" -> "18", "cache" -> "npm"),
+    UseRef.Public("actions", "setup-node", "v4"),
+    name = Some("Setup NodeJS v20 LTS"),
+    params = Map("node-version" -> "20", "cache" -> "npm"),
     cond = Some("matrix.project == 'rootJS'"),
   ),
   WorkflowStep.Run(
