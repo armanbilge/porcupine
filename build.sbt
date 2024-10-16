@@ -5,7 +5,7 @@ ThisBuild / organizationName := "Arman Bilge"
 ThisBuild / developers += tlGitHubDev("armanbilge", "Arman Bilge")
 ThisBuild / startYear := Some(2023)
 
-ThisBuild / crossScalaVersions := Seq("3.3.1")
+ThisBuild / crossScalaVersions := Seq("3.3.4")
 
 ThisBuild / githubWorkflowJavaVersions := Seq(JavaSpec.temurin("17"))
 ThisBuild / tlJdkRelease := Some(8)
