@@ -18,17 +18,17 @@ package porcupine
 
 import cats.effect.IOApp
 import cats.effect.IO
-import cats.syntax.all.*
 import scodec.bits.ByteVector
-
 import Codec.*
 
 object PorcupineTest extends IOApp.Simple:
 
   def run = Database.open[IO](":memory:").use { db =>
+    // TODO figure out why this is broken inside interpolation
+    val q = `null` *: integer *: real *: text *: blob *: nil
     db.execute(sql"create table porcupine (n, i, r, t, b);".command) *>
       db.execute(
-        sql"insert into porcupine values(${`null`}, $integer, $real, $text, $blob);".command,
+        sql"insert into porcupine values(${q});".command,
         (None, 42L, 3.14, "quill-pig", ByteVector(0, 1, 2, 3)),
       ) *>
       db.unique(
