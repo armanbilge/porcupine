@@ -19,14 +19,12 @@ package porcupine
 import cats.Applicative
 import cats.ContravariantMonoidal
 import cats.InvariantMonoidal
-import cats.data.{State, StateT}
+import cats.data.StateT
 import cats.syntax.all.*
 import org.typelevel.twiddles.TwiddleSyntax
 import scodec.bits.ByteVector
-import scala.deriving.Mirror
 
 trait Encoder[A]:
-  def parameters: State[Int, List[Int]]
   def encode(a: A): List[LiteValue]
 
 object Encoder:
@@ -34,15 +32,11 @@ object Encoder:
     def unit = Codec.unit
 
     def product[A, B](fa: Encoder[A], fb: Encoder[B]) = new:
-      def parameters =
-        (fa.parameters, fb.parameters).mapN(_ ::: _)
-
       def encode(ab: (A, B)) =
         val (a, b) = ab
         fa.encode(a) ::: fb.encode(b)
 
     def contramap[A, B](fa: Encoder[A])(f: B => A) = new:
-      def parameters = fa.parameters
       def encode(b: B) = fa.encode(f(b))
 
 trait Decoder[A]:
@@ -67,22 +61,25 @@ trait Codec[A] extends Encoder[A], Decoder[A]:
   def asDecoder: Decoder[A] = this
 
 object Codec extends TwiddleSyntax[Codec]:
-  final class PrimitiveCodec[A](name: String, apply: A => LiteValue, unapply: PartialFunction[LiteValue, A]) extends Codec[A]:
+  final class PrimitiveCodec[A](
+      name: String,
+      apply: A => LiteValue,
+      unapply: PartialFunction[LiteValue, A],
+  ) extends Codec[A]:
     outer =>
-    override val parameters: State[Int, List[Int]] = State(idx => (idx + 1, List(idx)))
     override def encode(a: A): List[LiteValue] = apply(a) :: Nil
     override def decode: StateT[Either[Throwable, *], List[LiteValue], A] = StateT {
       case unapply(l) :: tail => Right((tail, l))
       case other => Left(new RuntimeException(s"Expected $name, got ${other.headOption}"))
     }
     val opt: Codec[Option[A]] = new:
-      override def parameters: State[Int, List[Int]] = outer.parameters
       override def encode(a: Option[A]): List[LiteValue] =
         a.fold(LiteValue.Null)(outer.apply) :: Nil
       override def decode: StateT[Either[Throwable, *], List[LiteValue], Option[A]] = StateT {
         case outer.unapply(l) :: tail => Right((tail, Some(l)))
         case LiteValue.Null :: tail => Right((tail, None))
-        case other => Left(new RuntimeException(s"Expected $name or NULL, got ${other.headOption}"))
+        case other =>
+          Left(new RuntimeException(s"Expected $name or NULL, got ${other.headOption}"))
       }
 
   val integer: PrimitiveCodec[Long] =
@@ -101,7 +98,6 @@ object Codec extends TwiddleSyntax[Codec]:
     new PrimitiveCodec("NULL", _ => LiteValue.Null, { case LiteValue.Null => None })
 
   def unit: Codec[Unit] = new:
-    override val parameters: State[Int, List[Int]] = State.pure(Nil)
     def encode(u: Unit): List[LiteValue] = Nil
     def decode: StateT[Either[Throwable, *], List[LiteValue], Unit] = StateT.pure(())
 
@@ -111,9 +107,6 @@ object Codec extends TwiddleSyntax[Codec]:
     def unit = Codec.unit
 
     def product[A, B](fa: Codec[A], fb: Codec[B]) = new:
-      def parameters: State[Int, List[Int]] =
-        (fa.parameters, fb.parameters).mapN(_ ::: _)
-      
       def encode(ab: (A, B)) =
         val (a, b) = ab
         fa.encode(a) ::: fb.encode(b)
@@ -121,6 +114,5 @@ object Codec extends TwiddleSyntax[Codec]:
       def decode = fa.decode.product(fb.decode)
 
     def imap[A, B](fa: Codec[A])(f: A => B)(g: B => A) = new:
-      def parameters: State[Int, List[Int]] = fa.parameters
       def encode(b: B) = fa.encode(g(b))
       def decode = fa.decode.map(f)
