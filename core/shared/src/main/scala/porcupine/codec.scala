@@ -88,10 +88,10 @@ object Codec extends TwiddleSyntax[Codec]:
   val real: PrimitiveCodec[Double] =
     new PrimitiveCodec("real", LiteValue.Real.apply, { case LiteValue.Real(r) => r })
 
-  val text: Codec[String] =
+  val text: PrimitiveCodec[String] =
     new PrimitiveCodec("text", LiteValue.Text.apply, { case LiteValue.Text(t) => t })
 
-  val blob: Codec[ByteVector] =
+  val blob: PrimitiveCodec[ByteVector] =
     new PrimitiveCodec("blob", LiteValue.Blob.apply, { case LiteValue.Blob(b) => b })
 
   val `null`: Codec[None.type] =
