@@ -29,12 +29,13 @@ npm i better-sqlite3
 
 ### Native
 
-You must provide a native build of SQLite3. Here are four interesting ways to do this.
+You must provide a native build of SQLite3. Here are three interesting ways to do this.
 
-1. Using [scala-native-sqlite-amalgamation](https://github.com/lolgab/scala-native-sqlite-amalgamation):
+1. Compiling SQLite as part of your project. You can use [scala-native-sqlite-amalgamation]:
 ```scala
 libraryDependencies += "com.github.lolgab" % "scala-native-sqlite-amalgamation" % "3.53.2"
 ```
+or download the SQLite [amalgation] as a single `sqlite3.c` file and place it in your `resources/scala-native` directory.
 
 2. Dynamically linking to an existing installation of sqlite3.
 ```scala
@@ -46,7 +47,6 @@ nativeConfig ~= { c => c.withLinkingOptions(c.linkingOptions :+ "-lsqlite3") }
 nativeConfig ~= { c => c.withLinkingOptions(c.linkingOptions :+ "/usr/local/Cellar/sqlite/3.53.2/lib/libsqlite3.a") }
 ```
 
-4. Compiling SQLite as part of your project. You can download the SQLite [amalgation] as a single `sqlite3.c` file and place it in your `resources/scala-native` directory.
-
+[scala-native-sqlite-amalgamation]: https://github.com/lolgab/scala-native-sqlite-amalgamation
 [sn-vcpkg]: https://github.com/indoorvivants/sn-vcpkg
 [amalgation]: https://www.sqlite.org/amalgamation.html
