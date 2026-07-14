@@ -38,7 +38,7 @@ lazy val core = crossProject(JVMPlatform, JSPlatform, NativePlatform)
     name := "porcupine",
     libraryDependencies ++= Seq(
       "org.typelevel" %%% "cats-core" % "2.9.0",
-      "org.typelevel" %%% "cats-effect" % "3.5.4",
+      "org.typelevel" %%% "cats-effect" % "3.5.7",
       "org.typelevel" %%% "cats-core" % "2.10.0",
       "co.fs2" %%% "fs2-core" % "3.11.0",
       "org.scodec" %%% "scodec-bits" % "1.1.38",
