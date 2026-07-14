@@ -21,22 +21,11 @@ import cats.ContravariantMonoidal
 import cats.InvariantMonoidal
 import cats.data.StateT
 import cats.syntax.all.*
+import org.typelevel.twiddles.TwiddleSyntax
 import scodec.bits.ByteVector
 
-import scala.deriving.Mirror
-
 trait Encoder[A]:
-  outer =>
-
   def encode(a: A): List[LiteValue]
-
-  def either[B](right: Encoder[B]): Encoder[Either[A, B]] = new:
-    def encode(aorb: Either[A, B]) = aorb match
-      case Left(a) => outer.encode(a)
-      case Right(b) => right.encode(b)
-
-  def opt: Encoder[Option[A]] =
-    either(Codec.`null`).contramap(_.toLeft(None))
 
 object Encoder:
   given ContravariantMonoidal[Encoder] = new:
@@ -51,29 +40,10 @@ object Encoder:
       def encode(b: B) = fa.encode(f(b))
 
 trait Decoder[A]:
-  outer =>
-
   def decode: StateT[Either[Throwable, *], List[LiteValue], A]
 
-  def or[AA >: A](other: Decoder[AA]): Decoder[AA] = new:
-    def decode = outer.decode.widen[AA].handleErrorWith(_ => other.decode)
-
-  def either[B](right: Decoder[B]): Decoder[Either[A, B]] =
-    outer.map(Left(_)).or(right.map(Right(_)))
-
-  def opt: Decoder[Option[A]] =
-    outer.map(Some(_)).or(Codec.`null`.asDecoder.as(None))
-
-object Decoder:
-  extension [H](head: Decoder[H])
-    def *:[T <: Tuple](tail: Decoder[T]): Decoder[H *: T] = (head, tail).mapN(_ *: _)
-
-  extension [A <: Tuple](fa: Decoder[A])
-    def pmap[P <: Product](using
-        m: Mirror.ProductOf[P] { type MirroredElemTypes = A },
-    ): Decoder[P] = fa.map(m.fromProduct(_))
-
-  given Applicative[Decoder] = new:
+object Decoder extends TwiddleSyntax[Decoder]:
+  given decoderApplicative: Applicative[Decoder] = new:
     def pure[A](a: A) = new:
       def decode = StateT.pure(a)
 
@@ -87,59 +57,49 @@ object Decoder:
       def decode = fa.decode.map(f)
 
 trait Codec[A] extends Encoder[A], Decoder[A]:
-  outer =>
-
   def asEncoder: Encoder[A] = this
   def asDecoder: Decoder[A] = this
 
-  def either[B](right: Codec[B]): Codec[Either[A, B]] = new:
-    def encode(aorb: Either[A, B]) =
-      outer.asEncoder.either(right).encode(aorb)
-
-    def decode = outer.asDecoder.either(right).decode
-
-  override def opt: Codec[Option[A]] =
-    either(Codec.`null`).imap(_.left.toOption)(_.toLeft(None))
-
-object Codec:
-  val integer: Codec[Long] = new:
-    def encode(l: Long) = LiteValue.Integer(l) :: Nil
-    def decode = StateT {
-      case LiteValue.Integer(l) :: tail => Right((tail, l))
-      case other => Left(new RuntimeException(s"Expected integer, got ${other.headOption}"))
+object Codec extends TwiddleSyntax[Codec]:
+  final class PrimitiveCodec[A](
+      name: String,
+      apply: A => LiteValue,
+      unapply: PartialFunction[LiteValue, A],
+  ) extends Codec[A]:
+    outer =>
+    override def encode(a: A): List[LiteValue] = apply(a) :: Nil
+    override def decode: StateT[Either[Throwable, *], List[LiteValue], A] = StateT {
+      case unapply(l) :: tail => Right((tail, l))
+      case other => Left(new RuntimeException(s"Expected $name, got ${other.headOption}"))
     }
+    val opt: Codec[Option[A]] = new:
+      override def encode(a: Option[A]): List[LiteValue] =
+        a.fold(LiteValue.Null)(outer.apply) :: Nil
+      override def decode: StateT[Either[Throwable, *], List[LiteValue], Option[A]] = StateT {
+        case outer.unapply(l) :: tail => Right((tail, Some(l)))
+        case LiteValue.Null :: tail => Right((tail, None))
+        case other =>
+          Left(new RuntimeException(s"Expected $name or NULL, got ${other.headOption}"))
+      }
 
-  val real: Codec[Double] = new:
-    def encode(d: Double) = LiteValue.Real(d) :: Nil
-    def decode = StateT {
-      case LiteValue.Real(d) :: tail => Right((tail, d))
-      case other => Left(new RuntimeException(s"Expected real, got ${other.headOption}"))
-    }
+  val integer: PrimitiveCodec[Long] =
+    new PrimitiveCodec("integer", LiteValue.Integer.apply, { case LiteValue.Integer(i) => i })
 
-  val text: Codec[String] = new:
-    def encode(s: String) = LiteValue.Text(s) :: Nil
-    def decode = StateT {
-      case LiteValue.Text(s) :: tail => Right((tail, s))
-      case other => Left(new RuntimeException(s"Expected text, got ${other.headOption}"))
-    }
+  val real: PrimitiveCodec[Double] =
+    new PrimitiveCodec("real", LiteValue.Real.apply, { case LiteValue.Real(r) => r })
 
-  val blob: Codec[ByteVector] = new:
-    def encode(b: ByteVector) = LiteValue.Blob(b) :: Nil
-    def decode = StateT {
-      case LiteValue.Blob(b) :: tail => Right((tail, b))
-      case other => Left(new RuntimeException(s"Expected blob, got ${other.headOption}"))
-    }
+  val text: PrimitiveCodec[String] =
+    new PrimitiveCodec("text", LiteValue.Text.apply, { case LiteValue.Text(t) => t })
 
-  val `null`: Codec[None.type] = new:
-    def encode(n: None.type) = LiteValue.Null :: Nil
-    def decode = StateT {
-      case LiteValue.Null :: tail => Right((tail, None))
-      case other => Left(new RuntimeException(s"Expected NULL, got ${other.headOption}"))
-    }
+  val blob: PrimitiveCodec[ByteVector] =
+    new PrimitiveCodec("blob", LiteValue.Blob.apply, { case LiteValue.Blob(b) => b })
+
+  val `null`: Codec[None.type] =
+    new PrimitiveCodec("NULL", _ => LiteValue.Null, { case LiteValue.Null => None })
 
   def unit: Codec[Unit] = new:
-    def encode(u: Unit) = Nil
-    def decode = StateT.pure(())
+    def encode(u: Unit): List[LiteValue] = Nil
+    def decode: StateT[Either[Throwable, *], List[LiteValue], Unit] = StateT.pure(())
 
   def nil: Codec[EmptyTuple] = unit.imap(_ => EmptyTuple)(_ => ())
 

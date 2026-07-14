@@ -42,6 +42,7 @@ lazy val core = crossProject(JVMPlatform, JSPlatform, NativePlatform)
       "org.typelevel" %%% "cats-core" % "2.10.0",
       "co.fs2" %%% "fs2-core" % "3.11.0",
       "org.scodec" %%% "scodec-bits" % "1.1.38",
+      "org.typelevel" %%% "twiddles-core" % "0.8.0",
     ),
     Test / test := (Test / run).toTask("").value,
     Test / mainClass := Some("porcupine.PorcupineTest"),
