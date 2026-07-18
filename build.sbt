@@ -7,6 +7,7 @@ ThisBuild / startYear := Some(2023)
 
 ThisBuild / crossScalaVersions := Seq("3.3.1")
 
+ThisBuild / githubWorkflowOSes := Seq("ubuntu-24.04")
 ThisBuild / githubWorkflowJavaVersions := Seq(JavaSpec.temurin("17"))
 ThisBuild / tlJdkRelease := Some(8)
 
