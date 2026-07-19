@@ -23,6 +23,7 @@ import cats.syntax.all.*
 import scodec.bits.ByteVector
 
 import scala.scalanative.unsafe.*
+import scala.scalanative.unsigned.*
 
 import sqlite3.*
 
@@ -90,7 +91,7 @@ private abstract class DatabasePlatform:
                             case LiteValue.Blob(b) =>
                               val ba = b.toArray
                               guard(db)(
-                                sqlite3_bind_blob64(stmt, i, ba.at(0), ba.length, null),
+                                sqlite3_bind_blob64(stmt, i, ba.at(0), ba.length.toULong, null),
                               )
                               i += 1
                               List(ba)

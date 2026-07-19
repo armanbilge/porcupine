@@ -22,8 +22,8 @@ import scala.scalanative.unsafe.*
 private object sqlite3:
   type sqlite3 = CStruct0
   type sqlite3_stmt = CStruct0
-  type sqlite3_int64 = CLong
-  type sqlite3_uint64 = CLong
+  type sqlite3_int64 = CLongLong
+  type sqlite3_uint64 = CUnsignedLongLong
 
   final val SQLITE_OK = 0
   final val SQLITE_ROW = 100

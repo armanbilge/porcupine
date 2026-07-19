@@ -7,6 +7,7 @@ ThisBuild / startYear := Some(2023)
 
 ThisBuild / crossScalaVersions := Seq("3.3.1")
 
+ThisBuild / githubWorkflowOSes := Seq("ubuntu-24.04")
 ThisBuild / githubWorkflowJavaVersions := Seq(JavaSpec.temurin("17"))
 ThisBuild / tlJdkRelease := Some(8)
 
@@ -37,11 +38,10 @@ lazy val core = crossProject(JVMPlatform, JSPlatform, NativePlatform)
   .settings(
     name := "porcupine",
     libraryDependencies ++= Seq(
-      "org.typelevel" %%% "cats-core" % "2.9.0",
-      "org.typelevel" %%% "cats-effect" % "3.5.4",
-      "org.typelevel" %%% "cats-core" % "2.10.0",
-      "co.fs2" %%% "fs2-core" % "3.11.0",
-      "org.scodec" %%% "scodec-bits" % "1.1.38",
+      "org.typelevel" %%% "cats-core" % "2.13.0",
+      "org.typelevel" %%% "cats-effect" % "3.7.0",
+      "co.fs2" %%% "fs2-core" % "3.13.0",
+      "org.scodec" %%% "scodec-bits" % "1.2.1",
     ),
     Test / test := (Test / run).toTask("").value,
     Test / mainClass := Some("porcupine.PorcupineTest"),
